@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "nvim-remote"
+version = "0.1.0"
+description = ""
+authors = ["Evan Voyles <evan.voyles@intrafentech.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+uvicorn = "^0.30.6"
+fastapi = {extras = ["uvicorn"], version = "^0.112.1"}
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
