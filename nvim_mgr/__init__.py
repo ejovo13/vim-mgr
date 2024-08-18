@@ -3,11 +3,14 @@
 from pydantic import BaseModel
 import fastapi
 from contextlib import asynccontextmanager
+from rich import print
+import typer
 
 from dataclasses import dataclass
 
 from starlette.requests import Request
 from fastapi import Depends
+import uvicorn
 
 
 @dataclass
@@ -92,3 +95,16 @@ async def get_buffer_name(
     app_state.server_buffers[0] = registered_buffers
     print(app_state)
     return SUCCESS_RESPONSE
+
+
+cli = typer.Typer()
+
+
+@cli.command()
+def main(host: str = "localhost", port: int = 8881):
+    uvicorn.run(
+        "nvim_mgr:app",
+        host=host,
+        port=port,
+        reload=True,
+    )
