@@ -11,12 +11,13 @@ from dataclasses import dataclass
 from starlette.requests import Request
 from fastapi import Depends
 import uvicorn
+import subprocess
 
 
 @dataclass
 class AppState:
     active_servers: set[str]
-    server_buffers: dict[int, set[int]]
+    server_buffers: dict[str, set[str]]
 
 
 async def get_app_state(request: Request) -> AppState:
@@ -78,23 +79,46 @@ def disconnect(
     return SUCCESS_RESPONSE
 
 
+@app.post("/files")
+def hello_post(input: Input, app_state: AppState = Depends(get_app_state)) -> dict:
+    print("Received info from server running on: {}".format(input.server))
+    value = app_state.server_buffers.get(input.server, set())
+    value.update(input.loaded_files)
+    print("Serving files: ")
+    print(value)
+    app_state.server_buffers[input.server] = value
+    return SUCCESS_RESPONSE
+
+
 @app.post("/")
 def hello_post(input: Input) -> dict:
     print("Received info from server running on: {}".format(input.server))
     return input.model_dump()
 
 
-@app.get("/buffer/{bufnr}")
-async def get_buffer_name(
-    bufnr: int,
-    app_state: AppState = Depends(get_app_state),
-) -> dict:
-    print("Bufnr: {}".format(bufnr))
-    registered_buffers = app_state.server_buffers.get(0, set())
-    registered_buffers.add(bufnr)
-    app_state.server_buffers[0] = registered_buffers
-    print(app_state)
-    return SUCCESS_RESPONSE
+@app.get("/pulse")
+def hello_pulse(app_state: AppState = Depends(get_app_state)) -> dict:
+    """Return a dictionary with information about each server."""
+    out = dict(servers=app_state.active_servers)
+    out.update(SUCCESS_RESPONSE)
+
+    for server in app_state.active_servers:
+        proc_out = send_lua(server, "require('user.ejovo').server.report_files()")
+        print("Out: {}".format(proc_out))
+
+    return out
+
+
+def send_lua(server: str, lua_code: str) -> str:
+    return send_keys(server, "<cmd>lua {}<CR>".format(lua_code))
+
+
+def send_keys(server: str, keys: str) -> str:
+    """Send some keys to a remote nvim server."""
+    cmd = ["nvim", "--remote-send", keys, "--server", server]
+    print("Trying to send keys: {}".format(" ".join(cmd)))
+    out = subprocess.run(cmd, stdout=subprocess.PIPE)
+    return out.stdout.decode()
 
 
 cli = typer.Typer()
